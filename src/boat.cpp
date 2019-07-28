@@ -8,6 +8,42 @@
 using namespace Ariadne;
 typedef GeneralHybridEvolver HybridEvolverType;
 
+struct params {
+    double mass;
+    double inertia;
+    double motor_force;
+    double wave_angle;
+    double wave_speed;
+    double friction;
+    std::vector<double> wind_start_time, wind_stop_time, wind_torque;
+};
+
+void read_params_from_file(params &p) {
+    std::ifstream in_file("configuration.txt");
+
+    std::string dump;
+    int n;
+    in_file >> dump >> p.mass;
+    in_file >> dump >> p.inertia;
+    in_file >> dump >> p.motor_force;
+    in_file >> dump >> p.wave_angle;
+    in_file >> dump >> p.wave_speed;
+    in_file >> dump >> p.friction;
+    in_file >> dump >> n;
+    p.wind_start_time.clear();
+    p.wind_stop_time.clear();
+    p.wind_torque.clear();
+    for( int i=0; i<n; i++ ) {
+        double d;
+        in_file >> d;
+        p.wind_start_time.push_back(d);
+        in_file >> d;
+        p.wind_stop_time.push_back(d);
+        in_file >> d;
+        p.wind_torque.push_back(d);
+    }
+}
+
 template <class T>
 void write(const char *filename, const T &t)
 {
@@ -175,21 +211,11 @@ int main()
     //evoluzione controllo proporzionale
     // evolve_simple_boat(prop_system, 1.0, 3.141);
 
-    std::vector<double> wind_torque, wind_start_time, wind_end_time;
-    // wind_torque.push_back(1.0);
-    // wind_start_time.push_back(10.0);
-    // wind_end_time.push_back(20.0);
+    params p;
+    read_params_from_file(p);
 
-    // wind_torque.push_back(-5.0);
-    // wind_start_time.push_back(25.0);
-    // wind_end_time.push_back(30.0);
-    
-    wind_start_time.push_back(20.0);
-    wind_end_time.push_back(30.0);
-    wind_torque.push_back(-50.0);
-
-    HybridAutomaton boat = create_wind_boat(100.0, 500.0, 100.0, 3.141 / 2, 2.0, 2.0,
-                                                               wind_start_time, wind_end_time, wind_torque);
+    HybridAutomaton boat = create_wind_boat(p.mass, p.inertia, p.motor_force, p.wave_angle, p.wave_speed, p.friction,
+                                                        p.wind_start_time, p.wind_stop_time, p.wind_torque);
 
     CompositeHybridAutomaton wind_boat({boat, prop_controller});
 

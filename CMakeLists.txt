@@ -24,3 +24,4 @@ target_link_libraries(boat ${ARIADNE_LIBRARIES})
 
 # Copia run script in build
 configure_file(src/run.sh ${CMAKE_BINARY_DIR}/run.sh)
+configure_file(src/configuration.txt ${CMAKE_BINARY_DIR}/configuration.txt)

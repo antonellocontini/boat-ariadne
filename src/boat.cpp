@@ -45,7 +45,7 @@ void simulate_wind_boat(CompositeHybridAutomaton system, double initial_V, doubl
                                   });
     std::cout << "initial_point=" << initial_point << "\n";
 
-    double sim_time = 40.0;
+    double sim_time = 140.0;
     HybridTime simulation_time(sim_time, 8);
     std::cout << "simulation_time=" << simulation_time << "\n";
 
@@ -184,9 +184,9 @@ int main()
     // wind_start_time.push_back(25.0);
     // wind_end_time.push_back(30.0);
     
-    wind_start_time.push_back(2.0);
-    wind_end_time.push_back(7.0);
-    wind_torque.push_back(5000.0);
+    wind_start_time.push_back(20.0);
+    wind_end_time.push_back(30.0);
+    wind_torque.push_back(-50.0);
 
     HybridAutomaton boat = create_wind_boat(100.0, 500.0, 100.0, 3.141 / 2, 2.0, 2.0,
                                                                wind_start_time, wind_end_time, wind_torque);

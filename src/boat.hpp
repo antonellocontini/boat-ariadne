@@ -77,10 +77,22 @@ HybridAutomaton create_wind_boat(double mass, double inertia, double motor_force
         wind_boat.new_mode( wind_state|wind_off, dyn );
 
         // genero le transizioni necessarie
-        wind_boat.new_transition( wind_state|last, on_transition, wind_state|wind_on,
-                {next(WindTorque) = Decimal(wind_torque[i])}, T>=Decimal(wind_start_time[i]), EventKind::URGENT );
-        wind_boat.new_transition( wind_state|wind_on, off_transition, wind_state|wind_off,
-                {next(WindTorque) = 0.0_decimal}, T>=Decimal(wind_end_time[i]), EventKind::URGENT );
+        wind_boat.new_transition( wind_state|last, on_transition, wind_state|wind_on
+                , {
+                    next(X) = X, next(Y) = Y, next(Theta) = Theta
+                    , next(V) = V, next(T) = T, next(Omega) = Omega
+                    , next(WindTorque) = Decimal(wind_torque[i])
+                }
+                // , {next(WindTorque) = Decimal(wind_torque[i])}
+                , T>=Decimal(wind_start_time[i]), EventKind::URGENT );
+        wind_boat.new_transition( wind_state|wind_on, off_transition, wind_state|wind_off
+                , {
+                    next(X) = X, next(Y) = Y, next(Theta) = Theta
+                    , next(V) = V, next(T) = T, next(Omega) = Omega
+                    , next(WindTorque) = 0.0_decimal
+                }
+                // , {next(WindTorque) = 0.0_decimal}
+                , T>=Decimal(wind_end_time[i]), EventKind::URGENT );
 
         last = wind_off;
     }

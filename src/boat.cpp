@@ -9,26 +9,36 @@ using namespace Ariadne;
 typedef GeneralHybridEvolver HybridEvolverType;
 
 struct params {
+    double controller_k;
+    double controller_heading;
     double mass;
     double inertia;
     double motor_force;
     double wave_angle;
     double wave_speed;
     double friction;
+    double initial_velocity;
+    double initial_heading;
     std::vector<double> wind_start_time, wind_stop_time, wind_torque;
 };
 
 void read_params_from_file(params &p) {
     std::ifstream in_file("configuration.txt");
 
+    assert(!in_file.bad());
+
     std::string dump;
     int n;
+    in_file >> dump >> p.controller_k;
+    in_file >> dump >> p.controller_heading;
     in_file >> dump >> p.mass;
     in_file >> dump >> p.inertia;
     in_file >> dump >> p.motor_force;
     in_file >> dump >> p.wave_angle;
     in_file >> dump >> p.wave_speed;
     in_file >> dump >> p.friction;
+    in_file >> dump >> p.initial_velocity;
+    in_file >> dump >> p.initial_heading;
     in_file >> dump >> n;
     p.wind_start_time.clear();
     p.wind_stop_time.clear();
@@ -92,6 +102,10 @@ void simulate_wind_boat(CompositeHybridAutomaton system, double initial_V, doubl
     write("trajectory_simple.txt", trajectory);
     plot("space_trajectory_simple.png", Axes2d(-plot_x <= X <= plot_x, -plot_y <= Y <= plot_y), Colour(0.0, 0.5, 1.0), trajectory);
     plot("V_trajectory_simple.png", Axes2d(0.0 <= time <= sim_time, -20.0 <= V <= 20.0), Colour(0.0, 0.5, 1.0), trajectory);
+}
+
+void evolve_wind_boat(CompositeHybridAutomaton system, double initial_V, double initial_heading) {
+
 }
 
 void simulate_simple_boat(CompositeHybridAutomaton system, double initial_V, double initial_heading, DiscreteLocation start_loc)
@@ -198,21 +212,10 @@ void evolve_simple_boat(CompositeHybridAutomaton system, double initial_V, doubl
 
 int main()
 {
-    //instantiate automaton
-    // HybridAutomaton simple_boat = create_simple_boat(100.0, 500.0, 100.0, 3.141 / 2, 2.0, 2.0);
-    HybridAutomaton prop_controller = create_controller_proportional(1.0, 0.0);
-    // CompositeHybridAutomaton prop_system({simple_boat, prop_controller});
-
-    // std::cout << prop_system << "\n\n";
-
-    //simulazione controllo proporzionale
-    // simulate_simple_boat(prop_system, 1.0, 3.141);
-
-    //evoluzione controllo proporzionale
-    // evolve_simple_boat(prop_system, 1.0, 3.141);
-
     params p;
     read_params_from_file(p);
+
+    HybridAutomaton prop_controller = create_controller_proportional(p.controller_k, p.controller_heading);
 
     HybridAutomaton boat = create_wind_boat(p.mass, p.inertia, p.motor_force, p.wave_angle, p.wave_speed, p.friction,
                                                         p.wind_start_time, p.wind_stop_time, p.wind_torque);
@@ -221,7 +224,8 @@ int main()
 
     std::cout << wind_boat << "\n\n";
 
-    simulate_wind_boat(wind_boat, 1.0, 3.141);
+    simulate_wind_boat(wind_boat, p.initial_velocity, p.initial_heading);
+    evolve_wind_boat(wind_boat, p.initial_velocity, p.initial_heading);
 
     return 0;
 }

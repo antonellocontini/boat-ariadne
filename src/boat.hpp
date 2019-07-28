@@ -1,8 +1,94 @@
 #ifndef BOAT_HPP
 #define BOAT_HPP
 
+#include<list>
+#include<vector>
+#include<sstream>
 #include<ariadne.hpp>
+#include"controller_proportional.hpp"
 using namespace Ariadne;
+
+//costruisce l'automa in base al numero di raffiche di vento
+HybridAutomaton create_wind_boat(double mass, double inertia, double motor_force, double wave_angle,
+                                double wave_speed, double friction,
+                                const std::vector<double>& wind_start_time,
+                                const std::vector<double>& wind_end_time,
+                                const std::vector<double>& wind_torque) {
+ 
+    // i 3 vettori devono avere la stessa dimensione
+    assert(wind_start_time.size() == wind_end_time.size() &&
+            wind_end_time.size() == wind_torque.size());
+    
+    RealVariable T("T");
+
+    // HybridAutomaton clock("clock");
+    // clock.new_mode( { dot(T) = 1.0_decimal } );
+
+    //automa barca
+    RealVariable X("X"), Y("Y"), Theta("Theta");
+    RealVariable V("V"), Omega("Omega");
+    RealVariable Theta_r("Theta_r");
+    RealVariable WindTorque("WindTorque");
+
+    RealConstant m("m", Decimal(mass));
+    RealConstant I("I", Decimal(inertia));
+    RealConstant Fm("Fm", Decimal(motor_force));
+    RealConstant Vo("Vo", Decimal(wave_speed)), Theta_o("Theta_o", Decimal(wave_angle));          //angolo/forza onde
+    RealConstant mu("mu", Decimal(friction));
+    RealConstant d_coef("d_coef", 0.1_decimal);
+
+    StringVariable wind_state("wind_state");
+    StringConstant start("start");
+
+    DottedRealAssignments dyn = {
+        dot(X) = V*cos(Theta) + d_coef*Vo*cos(Theta_o),
+        dot(Y) = V*sin(Theta) + d_coef*Vo*sin(Theta_o),
+        dot(Theta) = Omega,
+        dot(V) = Fm/m - mu*V*V/m,
+        dot(WindTorque) = 0.0_decimal,
+        dot(T) = 1.0_decimal,
+        dot(Omega) = -V*V*sin(Theta_r)/I - 16.0_decimal*mu*Omega*V/I + WindTorque/I
+    };
+
+    HybridAutomaton wind_boat("wind_boat");
+    wind_boat.new_mode( wind_state|start, dyn );
+    StringConstant last = start;
+    for( int i=0; i<wind_torque.size(); i++ ) {
+        // genero le stringhe che distinguono gli eventi discreti e le transizioni
+        std::stringstream ss;
+        ss << i << "_on";
+        std::string wind_on_str = ss.str();
+        ss.str("");
+        ss << i << "_off";
+        std::string wind_off_str = ss.str();
+
+        StringConstant wind_on(wind_on_str);
+        StringConstant wind_off(wind_off_str);
+
+        ss.str("");
+        ss << i << "_on_transition";
+        DiscreteEvent on_transition(ss.str());
+        ss.str("");
+        ss << i << "_off_transition";
+        DiscreteEvent off_transition(ss.str());
+
+        // genero i due nuovi stati dell'automa
+        wind_boat.new_mode( wind_state|wind_on, dyn );
+        wind_boat.new_mode( wind_state|wind_off, dyn );
+
+        // genero le transizioni necessarie
+        wind_boat.new_transition( wind_state|last, on_transition, wind_state|wind_on,
+                {next(WindTorque) = Decimal(wind_torque[i])}, T>=Decimal(wind_start_time[i]), EventKind::URGENT );
+        wind_boat.new_transition( wind_state|wind_on, off_transition, wind_state|wind_off,
+                {next(WindTorque) = 0.0_decimal}, T>=Decimal(wind_end_time[i]), EventKind::URGENT );
+
+        last = wind_off;
+    }
+
+    // CompositeHybridAutomaton comp({clock, wind_boat});
+
+    return wind_boat;
+}
 
 
 HybridAutomaton create_simple_boat(double mass, double inertia, double motor_force, double wave_angle,

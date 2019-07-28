@@ -21,3 +21,6 @@ add_executable(boat src/boat.cpp)
 
 # Instruct to link against the ariadne library
 target_link_libraries(boat ${ARIADNE_LIBRARIES})
+
+# Copia run script in build
+configure_file(src/run.sh ${CMAKE_BINARY_DIR}/run.sh)

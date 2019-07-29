@@ -50,6 +50,8 @@ HybridAutomaton create_wind_boat(double mass, double inertia, double motor_force
         dot(Omega) = -V*V*sin(Theta_r)/I - 16.0_decimal*mu*Omega*V/I + WindTorque/I
     };
 
+    // genero gli stati e le relative transizioni
+    double delta_time = 0.5;
     HybridAutomaton wind_boat("wind_boat");
     wind_boat.new_mode( wind_state|start, dyn );
     StringConstant last = start;
@@ -72,6 +74,13 @@ HybridAutomaton create_wind_boat(double mass, double inertia, double motor_force
         ss << i << "_off_transition";
         DiscreteEvent off_transition(ss.str());
 
+        ss.str("");
+        ss << "must_" << i << "_on_transition";
+        DiscreteEvent must_on_transition(ss.str());
+        ss.str("");
+        ss << "must_" << i << "_off_transition";
+        DiscreteEvent must_off_transition(ss.str());
+
         // genero i due nuovi stati dell'automa
         wind_boat.new_mode( wind_state|wind_on, dyn );
         wind_boat.new_mode( wind_state|wind_off, dyn );
@@ -84,7 +93,9 @@ HybridAutomaton create_wind_boat(double mass, double inertia, double motor_force
                     , next(WindTorque) = Decimal(wind_torque[i])
                 }
                 // , {next(WindTorque) = Decimal(wind_torque[i])}
-                , T>=Decimal(wind_start_time[i]), EventKind::URGENT );
+                , T>=Decimal(wind_start_time[i] - delta_time), EventKind::PERMISSIVE );
+        wind_boat.new_invariant( wind_state|last, T<=Decimal(wind_start_time[i]), must_on_transition);
+
         wind_boat.new_transition( wind_state|wind_on, off_transition, wind_state|wind_off
                 , {
                     next(X) = X, next(Y) = Y, next(Theta) = Theta
@@ -92,7 +103,8 @@ HybridAutomaton create_wind_boat(double mass, double inertia, double motor_force
                     , next(WindTorque) = 0.0_decimal
                 }
                 // , {next(WindTorque) = 0.0_decimal}
-                , T>=Decimal(wind_end_time[i]), EventKind::URGENT );
+                , T>=Decimal(wind_end_time[i] - delta_time), EventKind::PERMISSIVE );
+        wind_boat.new_invariant( wind_state|wind_on, T<=Decimal(wind_end_time[i]), must_off_transition);
 
         last = wind_off;
     }

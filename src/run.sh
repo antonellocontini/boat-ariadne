@@ -1,4 +1,4 @@
 #!/bin/bash
 
-rm -f *.png trajectory_simple.txt
+rm -f *.png trajectory* orbit*
 ./boat

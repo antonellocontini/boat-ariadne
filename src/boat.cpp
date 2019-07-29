@@ -66,7 +66,6 @@ void simulate_wind_boat(CompositeHybridAutomaton system, double initial_V, doubl
 {
     RealVariable X("X"), Y("Y"), Theta("Theta");
     RealVariable V("V");
-    // RealVariable Xf("Xf"), Yf("Yf");
     RealVariable Omega("Omega");     //linear/angular velocities
     RealVariable Theta_r("Theta_r"); //rudder angle
     RealVariable WindTorque("WindTorque");
@@ -79,7 +78,6 @@ void simulate_wind_boat(CompositeHybridAutomaton system, double initial_V, doubl
     StringVariable wind_state("wind_state");
     StringConstant start("start");
 
-    // DiscreteLocation start_loc({position|proportional, wind_state|start});
     DiscreteLocation start_loc({wind_state | start, position | proportional});
 
     HybridSimulator simulator;
@@ -99,15 +97,67 @@ void simulate_wind_boat(CompositeHybridAutomaton system, double initial_V, doubl
 
     double plot_x = 200, plot_y = 200;
 
-    write("trajectory_simple.txt", trajectory);
-    plot("space_trajectory_simple.png", Axes2d(-plot_x <= X <= plot_x, -plot_y <= Y <= plot_y), Colour(0.0, 0.5, 1.0), trajectory);
-    plot("V_trajectory_simple.png", Axes2d(0.0 <= time <= sim_time, -20.0 <= V <= 20.0), Colour(0.0, 0.5, 1.0), trajectory);
+    write("trajectory_wind.txt", trajectory);
+    plot("space_trajectory_wind.png", Axes2d(-plot_x <= X <= plot_x, -plot_y <= Y <= plot_y), Colour(0.0, 0.5, 1.0), trajectory);
+    plot("rudder_trajectory_wind.png", Axes2d(0.0 <= time <= sim_time, -pi/2 <= Theta_r <= pi/2), Colour(0.0, 0.5, 1.0), trajectory);
+    // plot("V_trajectory_wind.png", Axes2d(0.0 <= time <= sim_time, -20.0 <= V <= 20.0), Colour(0.0, 0.5, 1.0), trajectory);
 }
 
 void evolve_wind_boat(CompositeHybridAutomaton system, double initial_V, double initial_heading) {
+    RealVariable X("X"), Y("Y"), Theta("Theta");
+    RealVariable V("V");
+    RealVariable Omega("Omega");
+    RealVariable Theta_r("Theta_r");
+    RealVariable WindTorque("WindTorque");
+    RealVariable T("T");
+    TimeVariable time;
 
+    StringVariable position("position");
+    StringConstant proportional("proportional");
+
+    StringVariable wind_state("wind_state");
+    StringConstant start("start");
+
+    DiscreteLocation start_loc({ wind_state|start, position|proportional});
+
+    HybridEvolverType evolver(system);
+    evolver.configuration().set_maximum_step_size(0.5);
+    // evolver.verbosity = 1;
+
+    HybridSet initial_set(start_loc, 
+                    { X == 0.0_decimal, Y == 0.0_decimal, Theta == Decimal(initial_heading),
+                      V == Decimal(initial_V), Omega == 0.0_decimal, T == 0.0_decimal,
+                      WindTorque == 0.0_decimal });
+    std::cout << "initial_set=" << initial_set << "\n";
+
+    double sim_time = 40.0;
+    HybridEnclosure initial_enclosure = evolver.enclosure(initial_set);
+    std::cout << "initial_enclosure=" << initial_enclosure << "\n\n";
+
+    HybridTime evolution_time(Decimal(sim_time), 6);
+    std::cout << "evolution_time=" << evolution_time << "\n";
+
+    std::cout << "Computing orbit...\n" << std::flush;
+    Orbit<HybridEnclosure> orbit = evolver.orbit(initial_set, evolution_time, Semantics::UPPER);
+    std::cout << "done.\n";
+
+    std::cout << "Writing orbit... " << std::flush;
+    write("orbit_wind.txt", orbit);
+    std::cout << "done.\n";
+
+    double plot_x = 200, plot_y = 200;
+    std::cout << "Plotting space orbit... " << std::flush;
+    plot("space_orbit_wind.png", Axes2d(-plot_x <= X <= plot_x, -plot_y <= Y <= plot_y), Colour(0.0, 0.5, 1.0), orbit);
+    std::cout << "done.\n";
+
+    // NON E' POSSIBILE PLOTTARE VARIABILI DEFINITE SOLO TRAMITE LET
+    // std::cout << "Plotting rudder orbit... " << std::flush;
+    // plot("rudder_orbit_wind.png", Axes2d(0.0 <= T <= sim_time, -pi/2 <= Theta_r <= pi/2), Colour(0.0, 0.5, 1.0), orbit);
+    std::cout << "done.\n";
 }
 
+
+// vecchio metodo
 void simulate_simple_boat(CompositeHybridAutomaton system, double initial_V, double initial_heading, DiscreteLocation start_loc)
 {
     //instantiate simulation
@@ -134,6 +184,8 @@ void simulate_simple_boat(CompositeHybridAutomaton system, double initial_V, dou
     //plot("rudder_trajectory_simple.png", Axes2d(0.0<=time<=sim_time, -pi/2<=Theta_r<=pi/2), Colour(0.0,0.5,1.0), trajectory);
 }
 
+
+// vecchio metodo
 void simulate_simple_boat(CompositeHybridAutomaton system, double initial_V, double initial_heading)
 {
     StringVariable position("position");
@@ -144,6 +196,8 @@ void simulate_simple_boat(CompositeHybridAutomaton system, double initial_V, dou
     simulate_simple_boat(system, initial_V, initial_heading, position | proportional);
 }
 
+
+// vecchio metodo
 void evolve_simple_boat(CompositeHybridAutomaton system, double initial_V, double initial_heading, DiscreteLocation start_loc)
 {
     RealVariable X("X"), Y("Y"), Theta("Theta");
@@ -194,6 +248,8 @@ void evolve_simple_boat(CompositeHybridAutomaton system, double initial_V, doubl
     std::cout << "done.\n\n";
 }
 
+
+// vecchio metodo
 void evolve_simple_boat(CompositeHybridAutomaton system, double initial_V, double initial_heading)
 {
     DiscreteLocation loc; //for fixed controller

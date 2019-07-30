@@ -9,7 +9,7 @@
 using namespace Ariadne;
 
 //costruisce l'automa in base al numero di raffiche di vento
-HybridAutomaton create_wind_boat(double mass, double inertia, double motor_force, double wave_angle,
+std::vector<HybridAutomaton> create_wind_boat(double mass, double inertia, double motor_force, double wave_angle,
                                 double wave_speed, double friction,
                                 const std::vector<double>& wind_start_time,
                                 const std::vector<double>& wind_end_time,
@@ -37,23 +37,36 @@ HybridAutomaton create_wind_boat(double mass, double inertia, double motor_force
     RealConstant mu("mu", Decimal(friction));
     RealConstant d_coef("d_coef", 0.1_decimal);
 
-    StringVariable wind_state("wind_state");
-    StringConstant start("start");
-
     DottedRealAssignments dyn = {
         dot(X) = V*cos(Theta) + d_coef*Vo*cos(Theta_o),
         dot(Y) = V*sin(Theta) + d_coef*Vo*sin(Theta_o),
         dot(Theta) = Omega,
         dot(V) = Fm/m - mu*V*V/m,
-        dot(WindTorque) = 0.0_decimal,
-        dot(T) = 1.0_decimal,
         dot(Omega) = -V*V*sin(Theta_r)/I - 16.0_decimal*mu*Omega*V/I + WindTorque/I
     };
 
+    HybridAutomaton boat("boat");
+    DiscreteEvent wrap_cw("wrap_cw"), wrap_ccw("wrap_ccw");
+    boat.new_mode( dyn );
+    boat.new_transition( wrap_cw, 
+        { next(X) = X, next(Y) = Y, next(V) = V, next(Omega) = Omega, next(Theta) = pi },
+        Theta < -pi /*&& Omega < Decimal(0.0)*/, EventKind::URGENT );
+    boat.new_transition( wrap_ccw,
+        { next(X) = X, next(Y) = Y, next(V) = V, next(Omega) = Omega, next(Theta) = -pi },
+        Theta > pi /*&& Omega > Decimal(0.0)*/, EventKind::URGENT);
+
+    StringVariable wind_state("wind_state");
+    StringConstant start("start");
+
+    DottedRealAssignments wind_dyn = {
+        dot(WindTorque) = 0.0_decimal,
+        dot(T) = 1.0_decimal
+    };
+
     // genero gli stati e le relative transizioni
-    double delta_time = 0.5;
-    HybridAutomaton wind_boat("wind_boat");
-    wind_boat.new_mode( wind_state|start, dyn );
+    double delta_time = 0.1;
+    HybridAutomaton wind("wind");
+    wind.new_mode( wind_state|start, wind_dyn );
     StringConstant last = start;
     for( int i=0; i<wind_torque.size(); i++ ) {
         // genero le stringhe che distinguono gli eventi discreti e le transizioni
@@ -82,34 +95,28 @@ HybridAutomaton create_wind_boat(double mass, double inertia, double motor_force
         DiscreteEvent must_off_transition(ss.str());
 
         // genero i due nuovi stati dell'automa
-        wind_boat.new_mode( wind_state|wind_on, dyn );
-        wind_boat.new_mode( wind_state|wind_off, dyn );
+        wind.new_mode( wind_state|wind_on, wind_dyn );
+        wind.new_mode( wind_state|wind_off, wind_dyn );
 
         // genero le transizioni necessarie
-        wind_boat.new_transition( wind_state|last, on_transition, wind_state|wind_on
-                , {
-                    next(X) = X, next(Y) = Y, next(Theta) = Theta
-                    , next(V) = V, next(T) = T, next(Omega) = Omega
-                    , next(WindTorque) = Decimal(wind_torque[i])
-                }
+        wind.new_transition( wind_state|last, on_transition, wind_state|wind_on
+                , { next(T) = T, next(WindTorque) = Decimal(wind_torque[i]) }
                 // , {next(WindTorque) = Decimal(wind_torque[i])}
                 , T>=Decimal(wind_start_time[i] - delta_time), EventKind::PERMISSIVE );
-        wind_boat.new_invariant( wind_state|last, T<=Decimal(wind_start_time[i]), must_on_transition);
+        wind.new_invariant( wind_state|last, T<=Decimal(wind_start_time[i]), must_on_transition);
 
-        wind_boat.new_transition( wind_state|wind_on, off_transition, wind_state|wind_off
-                , {
-                    next(X) = X, next(Y) = Y, next(Theta) = Theta
-                    , next(V) = V, next(T) = T, next(Omega) = Omega
-                    , next(WindTorque) = 0.0_decimal
-                }
+        wind.new_transition( wind_state|wind_on, off_transition, wind_state|wind_off
+                , { next(T) = T, next(WindTorque) = 0.0_decimal }
                 // , {next(WindTorque) = 0.0_decimal}
                 , T>=Decimal(wind_end_time[i] - delta_time), EventKind::PERMISSIVE );
-        wind_boat.new_invariant( wind_state|wind_on, T<=Decimal(wind_end_time[i]), must_off_transition);
+        wind.new_invariant( wind_state|wind_on, T<=Decimal(wind_end_time[i]), must_off_transition);
 
         last = wind_off;
     }
 
-    // CompositeHybridAutomaton comp({clock, wind_boat});
+    // CompositeHybridAutomaton comp({clock, wind});
+
+    std::vector<HybridAutomaton> wind_boat({wind, boat});
 
     return wind_boat;
 }

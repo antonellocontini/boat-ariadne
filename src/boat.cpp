@@ -9,6 +9,7 @@ using namespace Ariadne;
 typedef GeneralHybridEvolver HybridEvolverType;
 
 struct params {
+    double sim_time;
     double controller_k;
     double controller_heading;
     double mass;
@@ -29,6 +30,7 @@ void read_params_from_file(params &p) {
 
     std::string dump;
     int n;
+    in_file >> dump >> p.sim_time;
     in_file >> dump >> p.controller_k;
     in_file >> dump >> p.controller_heading;
     in_file >> dump >> p.mass;
@@ -62,7 +64,7 @@ void write(const char *filename, const T &t)
     ofs.close();
 }
 
-void simulate_wind_boat(CompositeHybridAutomaton system, double initial_V, double initial_heading)
+void simulate_wind_boat(CompositeHybridAutomaton system, double initial_V, double initial_heading, double sim_time = 140.0)
 {
     RealVariable X("X"), Y("Y"), Theta("Theta");
     RealVariable V("V");
@@ -89,8 +91,7 @@ void simulate_wind_boat(CompositeHybridAutomaton system, double initial_V, doubl
                                   });
     std::cout << "initial_point=" << initial_point << "\n";
 
-    double sim_time = 140.0;
-    HybridTime simulation_time(sim_time, 8);
+    HybridTime simulation_time(sim_time, 10);
     std::cout << "simulation_time=" << simulation_time << "\n";
 
     Orbit<HybridApproximatePoint> trajectory = simulator.orbit(system, initial_point, simulation_time);
@@ -99,11 +100,11 @@ void simulate_wind_boat(CompositeHybridAutomaton system, double initial_V, doubl
 
     write("trajectory_wind.txt", trajectory);
     plot("space_trajectory_wind.png", Axes2d(-plot_x <= X <= plot_x, -plot_y <= Y <= plot_y), Colour(0.0, 0.5, 1.0), trajectory);
-    plot("rudder_trajectory_wind.png", Axes2d(0.0 <= time <= sim_time, -pi/2 <= Theta_r <= pi/2), Colour(0.0, 0.5, 1.0), trajectory);
+    // plot("rudder_trajectory_wind.png", Axes2d(0.0 <= time <= sim_time, -pi/2 <= Theta_r <= pi/2), Colour(0.0, 0.5, 1.0), trajectory);
     // plot("V_trajectory_wind.png", Axes2d(0.0 <= time <= sim_time, -20.0 <= V <= 20.0), Colour(0.0, 0.5, 1.0), trajectory);
 }
 
-void evolve_wind_boat(CompositeHybridAutomaton system, double initial_V, double initial_heading) {
+void evolve_wind_boat(CompositeHybridAutomaton system, double initial_V, double initial_heading, double sim_time = 60.0) {
     RealVariable X("X"), Y("Y"), Theta("Theta");
     RealVariable V("V");
     RealVariable Omega("Omega");
@@ -121,8 +122,9 @@ void evolve_wind_boat(CompositeHybridAutomaton system, double initial_V, double 
     DiscreteLocation start_loc({ wind_state|start, position|proportional});
 
     HybridEvolverType evolver(system);
-    evolver.configuration().set_maximum_step_size(0.5);
-    // evolver.verbosity = 1;
+    evolver.configuration().set_maximum_step_size(8.0);
+    evolver.configuration().set_flow_accuracy(8.0); //default 0.00001
+    evolver.verbosity = 1;
 
     HybridSet initial_set(start_loc, 
                     { X == 0.0_decimal, Y == 0.0_decimal, Theta == Decimal(initial_heading),
@@ -130,24 +132,27 @@ void evolve_wind_boat(CompositeHybridAutomaton system, double initial_V, double 
                       WindTorque == 0.0_decimal });
     std::cout << "initial_set=" << initial_set << "\n";
 
-    double sim_time = 40.0;
     HybridEnclosure initial_enclosure = evolver.enclosure(initial_set);
     std::cout << "initial_enclosure=" << initial_enclosure << "\n\n";
 
-    HybridTime evolution_time(Decimal(sim_time), 6);
+    HybridTime evolution_time(Decimal(sim_time), 10);
     std::cout << "evolution_time=" << evolution_time << "\n";
 
     std::cout << "Computing orbit...\n" << std::flush;
-    Orbit<HybridEnclosure> orbit = evolver.orbit(initial_set, evolution_time, Semantics::UPPER);
+    Orbit<HybridEnclosure> orbit = evolver.orbit(initial_set, evolution_time, Semantics::LOWER);
     std::cout << "done.\n";
 
-    std::cout << "Writing orbit... " << std::flush;
-    write("orbit_wind.txt", orbit);
-    std::cout << "done.\n";
+    // std::cout << "Writing orbit... " << std::flush;
+    // write("orbit_wind.txt", orbit);
+    // std::cout << "done.\n";
 
     double plot_x = 200, plot_y = 200;
     std::cout << "Plotting space orbit... " << std::flush;
     plot("space_orbit_wind.png", Axes2d(-plot_x <= X <= plot_x, -plot_y <= Y <= plot_y), Colour(0.0, 0.5, 1.0), orbit);
+    std::cout << "done.\n";
+
+    std::cout << "Plotting angle orbit... " << std::flush;
+    plot("angle_orbit_wind.png", Axes2d(0.0 <= time <= sim_time, -pi <= Theta <= pi), Colour(0.0, 1.0, 0.5), orbit);
     std::cout << "done.\n";
 
     // NON E' POSSIBILE PLOTTARE VARIABILI DEFINITE SOLO TRAMITE LET
@@ -273,15 +278,16 @@ int main()
 
     HybridAutomaton prop_controller = create_controller_proportional(p.controller_k, p.controller_heading);
 
-    HybridAutomaton boat = create_wind_boat(p.mass, p.inertia, p.motor_force, p.wave_angle, p.wave_speed, p.friction,
+    std::vector<HybridAutomaton> sys_vec = create_wind_boat(p.mass, p.inertia, p.motor_force, p.wave_angle, p.wave_speed, p.friction,
                                                         p.wind_start_time, p.wind_stop_time, p.wind_torque);
+    sys_vec.push_back(prop_controller);
 
-    CompositeHybridAutomaton wind_boat({boat, prop_controller});
+    CompositeHybridAutomaton wind_boat(sys_vec);
 
     std::cout << wind_boat << "\n\n";
 
     simulate_wind_boat(wind_boat, p.initial_velocity, p.initial_heading);
-    evolve_wind_boat(wind_boat, p.initial_velocity, p.initial_heading);
+    evolve_wind_boat(wind_boat, p.initial_velocity, p.initial_heading, p.sim_time);
 
     return 0;
 }

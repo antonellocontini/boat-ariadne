@@ -155,9 +155,9 @@ void evolve_wind_boat(CompositeHybridAutomaton system, double initial_V, double 
     plot("angle_orbit_wind.png", Axes2d(0.0 <= time <= sim_time, -pi <= Theta <= pi), Colour(0.0, 1.0, 0.5), orbit);
     std::cout << "done.\n";
 
-    // NON E' POSSIBILE PLOTTARE VARIABILI DEFINITE SOLO TRAMITE LET
-    // std::cout << "Plotting rudder orbit... " << std::flush;
-    // plot("rudder_orbit_wind.png", Axes2d(0.0 <= T <= sim_time, -pi/2 <= Theta_r <= pi/2), Colour(0.0, 0.5, 1.0), orbit);
+    // NON E' POSSIBILE PLOTTARE VARIABILI DEFINITE SOLO TRAMITE LET???
+    std::cout << "Plotting rudder orbit... " << std::flush;
+    plot("rudder_orbit_wind.png", Axes2d(0.0 <= time <= sim_time, -pi/2 <= Theta_r <= pi/2), Colour(0.0, 0.5, 1.0), orbit);
     std::cout << "done.\n";
 }
 

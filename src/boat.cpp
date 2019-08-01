@@ -21,6 +21,7 @@ struct params {
     double wave_angle;
     double wave_speed;
     double friction;
+    double angular_friction;
     double initial_velocity;
     double initial_heading;
     std::vector<double> wind_start_time, wind_stop_time, wind_torque;
@@ -46,6 +47,7 @@ void read_params_from_file(params &p) {
     in_file >> dump >> p.wave_angle;
     in_file >> dump >> p.wave_speed;
     in_file >> dump >> p.friction;
+    in_file >> dump >> p.angular_friction;
     in_file >> dump >> p.initial_velocity;
     in_file >> dump >> p.initial_heading;
     in_file >> dump >> n;
@@ -170,7 +172,7 @@ int main()
     HybridAutomaton prop_controller = create_controller_proportional(p.controller_k, p.controller_heading);
 
     std::vector<HybridAutomaton> sys_vec = create_wind_boat(p.mass, p.inertia, p.motor_force, p.wave_angle, p.wave_speed, p.friction,
-                                                        p.wind_start_time, p.wind_stop_time, p.wind_torque);
+                                                        p.angular_friction, p.wind_start_time, p.wind_stop_time, p.wind_torque);
     sys_vec.push_back(prop_controller);
 
     CompositeHybridAutomaton wind_boat(sys_vec);

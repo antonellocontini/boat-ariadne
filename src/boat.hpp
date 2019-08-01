@@ -9,7 +9,7 @@ using namespace Ariadne;
 
 //costruisce l'automa in base al numero di raffiche di vento
 std::vector<HybridAutomaton> create_wind_boat(double mass, double inertia, double motor_force, double wave_angle,
-                                double wave_speed, double friction,
+                                double wave_speed, double friction, double angular_friction,
                                 const std::vector<double>& wind_start_time,
                                 const std::vector<double>& wind_end_time,
                                 const std::vector<double>& wind_torque) {
@@ -30,6 +30,7 @@ std::vector<HybridAutomaton> create_wind_boat(double mass, double inertia, doubl
     RealConstant Fm("Fm", Decimal(motor_force));
     RealConstant Vo("Vo", Decimal(wave_speed)), Theta_o("Theta_o", Decimal(wave_angle));          //angolo/forza onde
     RealConstant mu("mu", Decimal(friction));
+    RealConstant gamma("gamma", Decimal(angular_friction));
     RealConstant d_coef("d_coef", 0.1_decimal);
 
     DottedRealAssignments dyn = {
@@ -37,7 +38,7 @@ std::vector<HybridAutomaton> create_wind_boat(double mass, double inertia, doubl
         dot(Y) = V*sin(Theta) + d_coef*Vo*sin(Theta_o),
         dot(Theta) = Omega,
         dot(V) = Fm/m - mu*V*V/m,
-        dot(Omega) = -V*V*sin(Theta_r)/I - 16.0_decimal*mu*Omega*V/I + WindTorque/I
+        dot(Omega) = -V*V*sin(Theta_r)/I - gamma*Omega*V/I + WindTorque/I
     };
 
     HybridAutomaton boat("boat");

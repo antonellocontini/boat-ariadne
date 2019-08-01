@@ -10,6 +10,8 @@ typedef GeneralHybridEvolver HybridEvolverType;
 // struttura contenente i vari parametri 
 struct params {
     double sim_time;
+    double step_size;
+    double flow_accuracy;
     double controller_k;
     double controller_heading;
     double mass;
@@ -32,6 +34,8 @@ void read_params_from_file(params &p) {
     std::string dump;
     int n;
     in_file >> dump >> p.sim_time;
+    in_file >> dump >> p.step_size;
+    in_file >> dump >> p.flow_accuracy;
     in_file >> dump >> p.controller_k;
     in_file >> dump >> p.controller_heading;
     in_file >> dump >> p.mass;
@@ -103,7 +107,7 @@ void simulate_wind_boat(CompositeHybridAutomaton system, double initial_V, doubl
     plot("angle_trajectory_wind.png", Axes2d(0.0 <= time <= sim_time, -pi <= Theta <= pi), Colour(0.0, 1.0, 0.5), trajectory);
 }
 
-void evolve_wind_boat(CompositeHybridAutomaton system, double initial_V, double initial_heading, double sim_time = 60.0) {
+void evolve_wind_boat(CompositeHybridAutomaton system, double initial_V, double initial_heading, double sim_time = 60.0, double step_size = 8.0, double flow_accuracy = 8.0) {
     RealVariable X("X"), Y("Y"), Theta("Theta");
     RealVariable V("V");
     RealVariable Omega("Omega");
@@ -120,8 +124,8 @@ void evolve_wind_boat(CompositeHybridAutomaton system, double initial_V, double 
     DiscreteLocation start_loc({ wind_state|start, position|proportional});
 
     HybridEvolverType evolver(system);
-    evolver.configuration().set_maximum_step_size(8.0);
-    evolver.configuration().set_flow_accuracy(8.0); //default 0.00001
+    evolver.configuration().set_maximum_step_size(step_size);
+    evolver.configuration().set_flow_accuracy(flow_accuracy); //default 0.00001
     evolver.verbosity = 1;
 
     HybridSet initial_set(start_loc, 
@@ -171,7 +175,7 @@ int main()
     std::cout << wind_boat << "\n\n";
 
     simulate_wind_boat(wind_boat, p.initial_velocity, p.initial_heading, p.sim_time);
-    evolve_wind_boat(wind_boat, p.initial_velocity, p.initial_heading, p.sim_time);
+    evolve_wind_boat(wind_boat, p.initial_velocity, p.initial_heading, p.sim_time, p.step_size, p.flow_accuracy);
 
     return 0;
 }

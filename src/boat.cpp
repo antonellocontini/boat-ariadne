@@ -12,6 +12,7 @@ struct params {
     double sim_time;
     double step_size;
     double flow_accuracy;
+    double floor_radius;
     double controller_k;
     double controller_heading;
     double mass;
@@ -36,6 +37,7 @@ void read_params_from_file(params &p) {
     in_file >> dump >> p.sim_time;
     in_file >> dump >> p.step_size;
     in_file >> dump >> p.flow_accuracy;
+    in_file >> dump >> p.floor_radius;
     in_file >> dump >> p.controller_k;
     in_file >> dump >> p.controller_heading;
     in_file >> dump >> p.mass;
@@ -69,7 +71,7 @@ void write(const char *filename, const T &t)
     ofs.close();
 }
 
-void simulate_wind_boat(CompositeHybridAutomaton system, double initial_V, double initial_heading, double sim_time = 140.0)
+void simulate_wind_boat(CompositeHybridAutomaton system, double initial_V, double initial_heading, double sim_time = 140.0, double floor_size = 200.0)
 {
     RealVariable X("X"), Y("Y"), Theta("Theta");
     RealVariable V("V");
@@ -100,14 +102,15 @@ void simulate_wind_boat(CompositeHybridAutomaton system, double initial_V, doubl
 
     Orbit<HybridApproximatePoint> trajectory = simulator.orbit(system, initial_point, simulation_time);
 
-    double plot_x = 200, plot_y = 200;
+    double plot_x = floor_size, plot_y = floor_size;
 
     write("trajectory_wind.txt", trajectory);
     plot("space_trajectory_wind.png", Axes2d(-plot_x <= X <= plot_x, -plot_y <= Y <= plot_y), Colour(0.0, 0.5, 1.0), trajectory);
     plot("angle_trajectory_wind.png", Axes2d(0.0 <= time <= sim_time, -pi <= Theta <= pi), Colour(0.0, 1.0, 0.5), trajectory);
 }
 
-void evolve_wind_boat(CompositeHybridAutomaton system, double initial_V, double initial_heading, double sim_time = 60.0, double step_size = 8.0, double flow_accuracy = 8.0) {
+void evolve_wind_boat(CompositeHybridAutomaton system, double initial_V, double initial_heading,
+            double sim_time = 60.0, double step_size = 8.0, double flow_accuracy = 8.0, double floor_size = 200.0) {
     RealVariable X("X"), Y("Y"), Theta("Theta");
     RealVariable V("V");
     RealVariable Omega("Omega");
@@ -143,7 +146,7 @@ void evolve_wind_boat(CompositeHybridAutomaton system, double initial_V, double 
     Orbit<HybridEnclosure> orbit = evolver.orbit(initial_set, evolution_time, Semantics::LOWER);
     std::cout << "done.\n";
 
-    double plot_x = 200, plot_y = 200;
+    double plot_x = floor_size, plot_y = floor_size;
     std::cout << "Plotting space orbit... " << std::flush;
     plot("space_orbit_wind.png", Axes2d(-plot_x <= X <= plot_x, -plot_y <= Y <= plot_y), Colour(0.0, 0.5, 1.0), orbit);
     std::cout << "done.\n";
@@ -174,8 +177,8 @@ int main()
 
     std::cout << wind_boat << "\n\n";
 
-    simulate_wind_boat(wind_boat, p.initial_velocity, p.initial_heading, p.sim_time);
-    evolve_wind_boat(wind_boat, p.initial_velocity, p.initial_heading, p.sim_time, p.step_size, p.flow_accuracy);
+    simulate_wind_boat(wind_boat, p.initial_velocity, p.initial_heading, p.sim_time, p.floor_radius);
+    evolve_wind_boat(wind_boat, p.initial_velocity, p.initial_heading, p.sim_time, p.step_size, p.flow_accuracy, p.floor_radius);
 
     return 0;
 }

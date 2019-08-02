@@ -1,2 +1,2 @@
 wind strikes: 1 elapsed time: 468987
-wind strikes: 2 elapsed time: 472766
+wind strikes: 2 elapsed time: 1269728
